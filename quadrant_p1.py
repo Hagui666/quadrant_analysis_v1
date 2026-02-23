@@ -41,8 +41,10 @@ st.markdown(
 # =========================
 # Config (欄位映射)
 # =========================
-X_COL = "2025回推平均營業額"
-Y_COL = "2025成長率"
+# X_COL = "2025回推平均營業額"
+# Y_COL = "2025成長率"
+X_COL = "2025成長率"
+Y_COL = "2025回推平均營業額"
 
 BRAND_COL = "品牌"
 ZONE_COL = "分區編碼"
@@ -181,13 +183,17 @@ df = df[df[INCLUDE_COL] == "y"].copy()
 df[STORE_UI_COL] = df[MATCHED_COL].astype(str).replace({"nan": np.nan}).fillna("").str.strip()
 df[STORE_UI_COL] = df[STORE_UI_COL].replace({"": np.nan})
 
-df["_x_raw"] = to_numeric_series(df[X_COL])
-df["_y_raw"] = to_numeric_series(df[Y_COL])
+# df["_x_raw"] = to_numeric_series(df[X_COL])
+# df["_y_raw"] = to_numeric_series(df[Y_COL])
+df["_x_raw"] = to_numeric_series(df[X_COL])  # X = 成長率
+df["_y_raw"] = to_numeric_series(df[Y_COL])  # Y = 回推平均營業額
 df = df.dropna(subset=["_x_raw", "_y_raw"]).copy()
 
 # 成長率逐筆偵測（避免整欄誤除 100）
-df["_y"] = df["_y_raw"].where(df["_y_raw"].abs() <= 1.5, df["_y_raw"] / 100.0)
-df["_x"] = df["_x_raw"]
+# df["_y"] = df["_y_raw"].where(df["_y_raw"].abs() <= 1.5, df["_y_raw"] / 100.0)
+df["_x"] = df["_x_raw"].where(df["_x_raw"].abs() <= 1.5, df["_x_raw"] / 100.0) # 成長率逐筆偵測（套用在 X 軸）
+# df["_x"] = df["_x_raw"]
+df["_y"] = df["_y_raw"] # 營業額不需要百分比轉換
 
 df["_city_order"] = df[CITY_CODE_COL].apply(leading_int)
 
@@ -276,8 +282,10 @@ fdf["象限"] = np.select(conds, q_labels, default="未分類")
 st.title("2025 回推平均營業額 × 2025 成長率（互動）")
 
 c1, c2, c3 = st.columns(3)
-c1.metric("X 分界值", f"{x_cut:,.2f}")
-c2.metric("Y 分界值", f"{y_cut:.2%}")
+# c1.metric("X 分界值", f"{x_cut:,.2f}")
+c1.metric("X 分界值", f"{x_cut:.2%}")
+# c2.metric("Y 分界值", f"{y_cut:.2%}")
+c2.metric("Y 分界值", f"{y_cut:,.2f}")
 c3.metric("資料筆數", f"{len(fdf):,}")
 
 hover_dict = {
@@ -304,15 +312,18 @@ fig = px.scatter(
     title=f"散點圖（{cut_mode}分界｜顏色=品牌）"
 )
 
-fig.add_vline(x=x_cut, line_dash="dash", annotation_text=f"X分界: {x_cut:,.2f}", annotation_position="top")
-fig.add_hline(y=y_cut, line_dash="dash", annotation_text=f"Y分界: {y_cut:.2%}", annotation_position="right")
+# fig.add_vline(x=x_cut, line_dash="dash", annotation_text=f"X分界: {x_cut:,.2f}", annotation_position="top")
+fig.add_vline(x=x_cut, line_dash="dash", annotation_text=f"X分界: {x_cut:.2%}", annotation_position="top")
+# fig.add_hline(y=y_cut, line_dash="dash", annotation_text=f"Y分界: {y_cut:.2%}", annotation_position="right")
+fig.add_hline(y=y_cut, line_dash="dash", annotation_text=f"Y分界: {y_cut:,.2f}", annotation_position="right")
 
 if show_labels:
     fig.update_traces(mode="markers+text", textposition="top center")
 else:
     fig.update_traces(mode="markers")
 
-fig.update_yaxes(tickformat=".0%")
+# fig.update_yaxes(tickformat=".0%")
+fig.update_xaxes(tickformat=".0%")   # X 軸是成長率，用百分比顯示
 fig.update_layout(template="plotly_dark", hovermode="closest", legend_title_text="品牌", height=900)
 
 st.plotly_chart(fig, use_container_width=True)
